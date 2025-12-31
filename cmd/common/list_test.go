@@ -10,7 +10,7 @@ import (
 )
 
 func createFiles(dir string, files []string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	for _, file := range files {

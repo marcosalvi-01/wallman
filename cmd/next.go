@@ -6,7 +6,7 @@ import (
 
 var nextCmd = &cobra.Command{
 	Use:   "next",
-	Short: "next wallpaper TODO",
+	Short: "Set next wallpaper",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := GetConfig()
 		managerType := manager

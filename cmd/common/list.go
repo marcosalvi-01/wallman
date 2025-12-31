@@ -14,7 +14,7 @@ func List(dirs []string, subdirs bool) ([]string, error) {
 
 	for _, wallpaperDir := range dirs {
 		if subdirs {
-			filepath.WalkDir(wallpaperDir, func(dirPath string, d fs.DirEntry, err error) error {
+			if err := filepath.WalkDir(wallpaperDir, func(dirPath string, d fs.DirEntry, err error) error {
 				if err != nil {
 					return nil
 				}
@@ -23,7 +23,9 @@ func List(dirs []string, subdirs bool) ([]string, error) {
 				}
 				walls = append(walls, dirPath)
 				return nil
-			})
+			}); err != nil {
+				return nil, fmt.Errorf("failed to walk directory %s: %w", wallpaperDir, err)
+			}
 		} else {
 			entries, err := os.ReadDir(wallpaperDir)
 			if err != nil {

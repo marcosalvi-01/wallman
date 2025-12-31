@@ -1,9 +1,12 @@
 package hyprpaper
 
 import (
+	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
+	"math/big"
 	"math/rand/v2"
 	"os"
 	"os/exec"
@@ -34,9 +37,9 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 
 	for _, wallpaperDir := range wallpaperDirs {
 		if travelSubdirs {
-			filepath.WalkDir(wallpaperDir, func(dirPath string, d fs.DirEntry, err error) error {
+			if err := filepath.WalkDir(wallpaperDir, func(dirPath string, d fs.DirEntry, err error) error {
 				if err != nil {
-					// TODO show a warning
+					log.Printf("warning: failed to access %s: %v", dirPath, err)
 					return nil
 				}
 				if d.IsDir() || !isImg(d.Name()) {
@@ -44,7 +47,9 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 				}
 				walls = append(walls, dirPath)
 				return nil
-			})
+			}); err != nil {
+				return nil, fmt.Errorf("failed to walk directory %s: %w", wallpaperDir, err)
+			}
 		} else {
 			entries, err := os.ReadDir(wallpaperDir)
 			if err != nil {
@@ -133,7 +138,7 @@ func (h *Hyprpaper) Next() error {
 	if !h.dryRun {
 		err := setWallpaperToAllMonitors(path, "cover")
 		if err != nil {
-			return fmt.Errorf("TODO: %w", err)
+			return fmt.Errorf("failed to set next wallpaper on all monitors: %w", err)
 		}
 	}
 
@@ -154,7 +159,7 @@ func (h *Hyprpaper) Previous() error {
 	if !h.dryRun {
 		err := setWallpaperToAllMonitors(path, "cover")
 		if err != nil {
-			return fmt.Errorf("TODO: %w", err)
+			return fmt.Errorf("failed to set previous wallpaper on all monitors: %w", err)
 		}
 	}
 
@@ -166,7 +171,12 @@ func (h *Hyprpaper) Random() error {
 		return fmt.Errorf("no wallpapers available")
 	}
 
-	randomIndex := rand.IntN(len(h.wallpapers))
+	bigInt := big.NewInt(int64(len(h.wallpapers)))
+	randInt, randErr := crand.Int(crand.Reader, bigInt)
+	if randErr != nil {
+		return randErr
+	}
+	randomIndex := int(randInt.Int64())
 	path := h.wallpapers[randomIndex]
 
 	err := db.SetWallpaper(path)
@@ -177,7 +187,7 @@ func (h *Hyprpaper) Random() error {
 	if !h.dryRun {
 		err := setWallpaperToAllMonitors(path, "cover")
 		if err != nil {
-			return fmt.Errorf("TODO: %w", err)
+			return fmt.Errorf("failed to set random wallpaper on all monitors: %w", err)
 		}
 	}
 
@@ -207,12 +217,12 @@ func isImg(fileName string) bool {
 func setWallpaperToAllMonitors(path, fit string) error {
 	monitors, err := listMonitors()
 	if err != nil {
-		return fmt.Errorf("TODO: %w", err)
+		return fmt.Errorf("failed to list monitors: %w", err)
 	}
 	for _, monitor := range monitors {
 		err := setWallpaper(path, monitor, fit)
 		if err != nil {
-			return fmt.Errorf("TODO: %w", err)
+			return fmt.Errorf("failed to set wallpaper on monitor %s: %w", monitor, err)
 		}
 	}
 	return nil

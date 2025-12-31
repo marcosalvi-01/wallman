@@ -20,7 +20,7 @@ var listCmd = &cobra.Command{
 
 		walls, err := common.List(config.WallpaperDirs, config.TravelSubDirs)
 		if err != nil {
-			return fmt.Errorf("TODO: %w", err)
+			return fmt.Errorf("failed to list wallpapers: %w", err)
 		}
 
 		if jsonOutput {

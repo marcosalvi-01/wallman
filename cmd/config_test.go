@@ -53,9 +53,13 @@ func TestValidateConfig(t *testing.T) {
 func TestFindConfigPath(t *testing.T) {
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, ".config")
-	os.MkdirAll(configDir, 0o755)
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
 	configFile := filepath.Join(configDir, "wallman.yaml")
-	os.WriteFile(configFile, []byte("test"), 0o644)
+	if err := os.WriteFile(configFile, []byte("test"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	customFile := filepath.Join(tempDir, "custom.yaml")
 
@@ -72,9 +76,13 @@ func TestFindConfigPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.name == "no file" {
-				os.Remove(configFile)
+				if err := os.Remove(configFile); err != nil {
+					t.Fatal(err)
+				}
 			} else {
-				os.WriteFile(configFile, []byte("test"), 0o644)
+				if err := os.WriteFile(configFile, []byte("test"), 0o600); err != nil {
+					t.Fatal(err)
+				}
 			}
 			got := findConfigPath(tt.cfgFile, tt.homeDir)
 			if got != tt.want {
@@ -100,17 +108,23 @@ func TestInitConfig(t *testing.T) {
 			t.Setenv("HOME", tempDir)
 
 			configDir := filepath.Join(tempDir, ".config")
-			os.MkdirAll(configDir, 0o755)
+			if err := os.MkdirAll(configDir, 0o750); err != nil {
+				t.Fatal(err)
+			}
 			configFile := filepath.Join(configDir, "wallman.yaml")
 
 			if tt.hasConfig {
 				validYaml := `wallpaper_directories:
   - "` + tempDir + `"
 travel_sub_directories: true`
-				os.WriteFile(configFile, []byte(validYaml), 0o644)
+				if err := os.WriteFile(configFile, []byte(validYaml), 0o600); err != nil {
+					t.Fatal(err)
+				}
 				tt.want = &Config{WallpaperDirs: []string{tempDir}, TravelSubDirs: true}
 			} else {
-				os.Remove(configFile)
+				if err := os.RemoveAll(configFile); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			oldCfgFile := cfgFile

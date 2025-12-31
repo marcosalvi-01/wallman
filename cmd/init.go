@@ -6,12 +6,13 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "TODO",
-	Long:  `TODO`,
+	Short: "Initialize wallman config",
+	Long:  `Creates a default config file if it doesn't exist.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var configPath string
 
@@ -20,32 +21,36 @@ var initCmd = &cobra.Command{
 		} else {
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
-				return fmt.Errorf("TODO: %w", err)
+				return fmt.Errorf("error getting home directory: %w", err)
 			}
-
-			possiblePaths := []string{
-				filepath.Join(homeDir, ".config", "wallman.yaml"),
-				filepath.Join(homeDir, ".config", "wallman.yml"),
-				filepath.Join(homeDir, ".config", "wallman", "wallman.yaml"),
-				filepath.Join(homeDir, ".config", "wallman", "wallman.yml"),
-				filepath.Join(homeDir, ".config", "wallman", "config.yaml"),
-				filepath.Join(homeDir, ".config", "wallman", "config.yml"),
-			}
-
-			for _, path := range possiblePaths {
-				if _, err := os.Stat(path); err == nil {
-					configPath = path
-					break
-				}
-			}
+			configPath = filepath.Join(homeDir, ".config", "wallman.yaml")
 		}
 
-		if configPath == "" {
-			fmt.Fprintf(os.Stderr, "No config file found. Please create one at ~/.wallman.yaml\n")
-			return fmt.Errorf("TODO")
+		// Check if config already exists
+		if _, err := os.Stat(configPath); err == nil {
+			fmt.Printf("Config file already exists at %s\n", configPath)
+			return nil
 		}
 
+		// Create directory
+		dir := filepath.Dir(configPath)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return fmt.Errorf("error creating config directory: %w", err)
+		}
+
+		// Create default config
+		config := defaultConfig()
+		data, err := yaml.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("error marshaling config: %w", err)
+		}
+
+		// Write config file
+		if err := os.WriteFile(configPath, data, 0o600); err != nil {
+			return fmt.Errorf("error writing config file: %w", err)
+		}
+
+		fmt.Printf("Created default config at %s\n", configPath)
 		return nil
 	},
 }
