@@ -21,7 +21,7 @@ func List(dirs []string, subdirs bool) ([]string, error) {
 				if d.IsDir() || !isImg(d.Name()) {
 					return nil
 				}
-				walls = append(walls, path.Join(dirPath, d.Name()))
+				walls = append(walls, dirPath)
 				return nil
 			})
 		} else {

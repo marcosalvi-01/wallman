@@ -47,5 +47,5 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
 
-	// cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig)
 }
