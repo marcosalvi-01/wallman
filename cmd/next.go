@@ -9,7 +9,11 @@ var nextCmd = &cobra.Command{
 	Short: "next wallpaper TODO",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := GetConfig()
-		man, err := GetManager(config.WallpaperDirs, config.TravelSubDirs)
+		managerType := manager
+		if managerType == "" {
+			managerType = config.Manager
+		}
+		man, err := GetManager(config.WallpaperDirs, config.TravelSubDirs, managerType, appQueries, dryRun)
 		if err != nil {
 			panic(err)
 		}

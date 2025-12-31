@@ -9,6 +9,9 @@ import (
 
 var Version = "dev"
 
+var manager string
+var dryRun bool
+
 func getVersion() string {
 	if Version != "" && Version != "dev" {
 		return Version
@@ -46,6 +49,8 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
+	rootCmd.PersistentFlags().StringVar(&manager, "manager", "", "force specific manager type")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "simulate actions without changing system")
 
 	cobra.OnInitialize(initConfig)
 }

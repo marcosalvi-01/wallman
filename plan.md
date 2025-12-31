@@ -4,7 +4,7 @@ This plan outlines the features and tasks to complete the Wallman CLI tool for m
 
 ## 1. CLI Structure and Commands
 
-- [ ] Implement root command with global flags (`--config`, `--verbose`, `--manager`)
+- [x] Implement root command with global flags and `--manager` flag with config support
 - [ ] Add `wallman next` subcommand (calls Manager.Next())
 - [ ] Add `wallman previous` subcommand (calls Manager.Previous())
 - [ ] Add `wallman random` subcommand (calls Manager.Random())

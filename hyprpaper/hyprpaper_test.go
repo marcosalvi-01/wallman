@@ -7,7 +7,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	_, err := hyprpaper.New([]string{"/home/marco/gruvbox-wallpapers/wallpapers/"}, true)
+	_, err := hyprpaper.New([]string{"/home/marco/gruvbox-wallpapers/wallpapers/"}, true, nil, nil, false)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}

@@ -7,16 +7,20 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v2"
+	"wallman/db"
+	"wallman/db/sqlc"
 )
 
 var (
-	appConfig *Config
-	cfgFile   string
+	appConfig  *Config
+	cfgFile    string
+	appQueries *sqlc.Queries
 )
 
 type Config struct {
 	WallpaperDirs []string `yaml:"wallpaper_directories"`
 	TravelSubDirs bool     `yaml:"travel_sub_directories"`
+	Manager       string   `yaml:"manager"`
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -38,6 +42,7 @@ func defaultConfig() *Config {
 	return &Config{
 		WallpaperDirs: []string{},
 		TravelSubDirs: false,
+		Manager:       "auto",
 	}
 }
 
@@ -78,6 +83,13 @@ func initConfig() {
 	}
 
 	appConfig = config
+
+	// Initialize DB
+	appQueries, err = db.Get()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DB initialization failed: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func findConfigPath(cfgFile, homeDir string) string {

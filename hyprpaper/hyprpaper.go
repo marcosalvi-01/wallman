@@ -1,14 +1,19 @@
 package hyprpaper
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"math/rand/v2"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"wallman/db"
+	"wallman/db/sqlc"
 )
 
 var (
@@ -19,9 +24,12 @@ var (
 type Hyprpaper struct {
 	configDir     string
 	wallpaperDirs []string
+	wallpapers    []string
+	queries       *sqlc.Queries
+	dryRun        bool
 }
 
-func New(wallpaperDirs []string, travelSubdirs bool) (*Hyprpaper, error) {
+func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryRun bool) (*Hyprpaper, error) {
 	walls := make([]string, 0)
 
 	for _, wallpaperDir := range wallpaperDirs {
@@ -34,7 +42,7 @@ func New(wallpaperDirs []string, travelSubdirs bool) (*Hyprpaper, error) {
 				if d.IsDir() || !isImg(d.Name()) {
 					return nil
 				}
-				walls = append(walls, path.Join(dirPath, d.Name()))
+				walls = append(walls, dirPath)
 				return nil
 			})
 		} else {
@@ -88,29 +96,154 @@ func New(wallpaperDirs []string, travelSubdirs bool) (*Hyprpaper, error) {
 	return &Hyprpaper{
 		configDir:     configDir,
 		wallpaperDirs: wallpaperDirs,
+		wallpapers:    walls,
+		queries:       queries,
+		dryRun:        dryRun,
 	}, nil
 }
 
 func (h *Hyprpaper) Next() error {
+	if len(h.wallpapers) == 0 {
+		return fmt.Errorf("no wallpapers available")
+	}
+
+	current, err := db.GetCurrentWallpaperPath()
+	index := -1
+	if err == nil {
+		for i, w := range h.wallpapers {
+			if w == current {
+				index = i
+				break
+			}
+		}
+	}
+
+	nextIndex := 0
+	if index != -1 {
+		nextIndex = (index + 1) % len(h.wallpapers)
+	}
+
+	path := h.wallpapers[nextIndex]
+
+	err = db.SetWallpaper(path)
+	if err != nil {
+		return err
+	}
+
+	if !h.dryRun {
+		err := setWallpaperToAllMonitors(path, "cover")
+		if err != nil {
+			return fmt.Errorf("TODO: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (h *Hyprpaper) Previous() error {
+	path, err := db.GetPreviousWallpaper()
+	if err != nil {
+		return err
+	}
+
+	err = db.SetWallpaper(path)
+	if err != nil {
+		return err
+	}
+
+	if !h.dryRun {
+		err := setWallpaperToAllMonitors(path, "cover")
+		if err != nil {
+			return fmt.Errorf("TODO: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (h *Hyprpaper) Random() error {
+	if len(h.wallpapers) == 0 {
+		return fmt.Errorf("no wallpapers available")
+	}
+
+	randomIndex := rand.IntN(len(h.wallpapers))
+	path := h.wallpapers[randomIndex]
+
+	err := db.SetWallpaper(path)
+	if err != nil {
+		return err
+	}
+
+	if !h.dryRun {
+		err := setWallpaperToAllMonitors(path, "cover")
+		if err != nil {
+			return fmt.Errorf("TODO: %w", err)
+		}
+	}
+
 	return nil
 }
 
 func (h *Hyprpaper) Current() (string, error) {
-	return "", nil
+	return db.GetCurrentWallpaperPath()
 }
 
 func (h *Hyprpaper) History() ([]string, error) {
-	return nil, nil
+	history, err := db.GetWallpaperHistory(100)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, len(history))
+	for i, h := range history {
+		paths[i] = h.Path
+	}
+	return paths, nil
 }
 
 func isImg(fileName string) bool {
 	return imageRegex.Match([]byte(fileName))
+}
+
+func setWallpaperToAllMonitors(path, fit string) error {
+	monitors, err := listMonitors()
+	if err != nil {
+		return fmt.Errorf("TODO: %w", err)
+	}
+	for _, monitor := range monitors {
+		err := setWallpaper(path, monitor, fit)
+		if err != nil {
+			return fmt.Errorf("TODO: %w", err)
+		}
+	}
+	return nil
+}
+
+func setWallpaper(path, monitor, fit string) error {
+	args := fmt.Sprintf("%s,%s,%s", monitor, path, fit)
+	err := exec.Command("hyprctl", "hyprpaper", "wallpaper", args).Run()
+	if err != nil {
+		return fmt.Errorf("failed to set wallpaper: %w", err)
+	}
+	return nil
+}
+
+func listMonitors() ([]string, error) {
+	cmd := exec.Command("hyprctl", "monitors", "-j")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get monitors: %v", err)
+	}
+
+	var data []struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(out, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse monitors JSON: %v", err)
+	}
+
+	var names []string
+	for _, m := range data {
+		names = append(names, m.Name)
+	}
+	return names, nil
 }
