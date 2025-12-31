@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 )
 
 func List(dirs []string, subdirs bool) ([]string, error) {
@@ -18,7 +17,7 @@ func List(dirs []string, subdirs bool) ([]string, error) {
 				if err != nil {
 					return nil
 				}
-				if d.IsDir() || !isImg(d.Name()) {
+				if d.IsDir() || !IsImage(d.Name()) {
 					return nil
 				}
 				walls = append(walls, dirPath)
@@ -33,7 +32,7 @@ func List(dirs []string, subdirs bool) ([]string, error) {
 			}
 
 			for _, entry := range entries {
-				if entry.IsDir() || !isImg(entry.Name()) {
+				if entry.IsDir() || !IsImage(entry.Name()) {
 					continue
 				}
 				walls = append(walls, path.Join(wallpaperDir, entry.Name()))
@@ -42,10 +41,4 @@ func List(dirs []string, subdirs bool) ([]string, error) {
 	}
 
 	return walls, nil
-}
-
-var imageRegex = regexp.MustCompile(`^.*\.(jpeg|png)$`)
-
-func isImg(fileName string) bool {
-	return imageRegex.Match([]byte(fileName))
 }

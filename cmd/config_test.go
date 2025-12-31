@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/marcosalvi-01/wallman/cmd/common"
 )
 
 func TestExpandPath(t *testing.T) {
@@ -20,9 +22,9 @@ func TestExpandPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := expandPath(tt.input)
+			got := common.ExpandPath(tt.input)
 			if got != tt.want {
-				t.Errorf("expandPath() = %v, want %v", got, tt.want)
+				t.Errorf("ExpandPath() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/marcosalvi-01/wallman/cmd/common"
 	"github.com/marcosalvi-01/wallman/db"
 	"github.com/marcosalvi-01/wallman/db/sqlc"
 	"gopkg.in/yaml.v2"
@@ -72,7 +72,7 @@ func initConfig() {
 	// Expand paths
 	expandedDirs := make([]string, len(config.WallpaperDirs))
 	for i, dir := range config.WallpaperDirs {
-		expandedDirs[i] = expandPath(dir)
+		expandedDirs[i] = common.ExpandPath(dir)
 	}
 	config.WallpaperDirs = expandedDirs
 
@@ -127,12 +127,4 @@ func validateConfig(config *Config) error {
 // GetConfig returns the loaded configuration
 func GetConfig() *Config {
 	return appConfig
-}
-
-func expandPath(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		homeDir, _ := os.UserHomeDir()
-		path = filepath.Join(homeDir, path[2:])
-	}
-	return os.ExpandEnv(path)
 }

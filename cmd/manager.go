@@ -13,6 +13,7 @@ type Manager interface {
 	Random(trueRandom bool) error
 	Current() (string, error)
 	History() ([]string, error)
+	Set(path string) error
 }
 
 func GetManager(wallpaperDirs []string, travelSubdir bool, managerType string, queries *sqlc.Queries, dryRun bool) (Manager, error) {

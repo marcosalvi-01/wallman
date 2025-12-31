@@ -1,3 +1,4 @@
+// Package hyprpaper provides wallpaper management for Hyprland using the hyprpaper daemon.
 package hyprpaper
 
 import (
@@ -12,17 +13,15 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
+	"slices"
 	"strings"
 
+	"github.com/marcosalvi-01/wallman/cmd/common"
 	"github.com/marcosalvi-01/wallman/db"
 	"github.com/marcosalvi-01/wallman/db/sqlc"
 )
 
-var (
-	configDir  = filepath.Join(os.Getenv("HOME"), ".local", "share", "wallman")
-	imageRegex = regexp.MustCompile(`^.*\.(jpeg|png)$`)
-)
+var configDir = filepath.Join(os.Getenv("HOME"), ".local", "share", "wallman")
 
 type Hyprpaper struct {
 	configDir     string
@@ -42,7 +41,7 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 					log.Printf("warning: failed to access %s: %v", dirPath, err)
 					return nil
 				}
-				if d.IsDir() || !isImg(d.Name()) {
+				if d.IsDir() || !common.IsImage(d.Name()) {
 					return nil
 				}
 				walls = append(walls, dirPath)
@@ -57,7 +56,7 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 			}
 
 			for _, entry := range entries {
-				if entry.IsDir() || !isImg(entry.Name()) {
+				if entry.IsDir() || !common.IsImage(entry.Name()) {
 					continue
 				}
 				walls = append(walls, path.Join(wallpaperDir, entry.Name()))
@@ -187,7 +186,7 @@ func (h *Hyprpaper) Random(trueRandom bool) error {
 		}
 
 		if !h.dryRun {
-			err := setWallpaperToAllMonitors(path, "cover")
+			err := setWallpaperToAllMonitors(path, "fill")
 			if err != nil {
 				return fmt.Errorf("failed to set random wallpaper on all monitors: %w", err)
 			}
@@ -216,13 +215,7 @@ func (h *Hyprpaper) Random(trueRandom bool) error {
 	valid := len(shuffled) == len(h.wallpapers)
 	if valid {
 		for _, s := range shuffled {
-			found := false
-			for _, w := range h.wallpapers {
-				if s == w {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(h.wallpapers, s)
 			if !found {
 				valid = false
 				break
@@ -289,8 +282,35 @@ func (h *Hyprpaper) History() ([]string, error) {
 	return paths, nil
 }
 
-func isImg(fileName string) bool {
-	return imageRegex.Match([]byte(fileName))
+func (h *Hyprpaper) Set(path string) error {
+	path = common.ExpandPath(path)
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to access wallpaper file: %w", err)
+	}
+
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("path is not a regular file")
+	}
+
+	if !common.IsImage(filepath.Base(path)) {
+		return fmt.Errorf("unsupported image format (only JPEG and PNG are supported)")
+	}
+
+	err = db.SetWallpaper(path)
+	if err != nil {
+		return fmt.Errorf("failed to set wallpaper in database: %w", err)
+	}
+
+	if !h.dryRun {
+		err := setWallpaperToAllMonitors(path, "fill")
+		if err != nil {
+			return fmt.Errorf("failed to set wallpaper on monitors: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func setWallpaperToAllMonitors(path, fit string) error {

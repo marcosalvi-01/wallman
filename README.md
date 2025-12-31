@@ -11,6 +11,7 @@ type Manager interface {
 	Random() error
 	Current() (string, error)
 	History() ([]string, error)
+	Set(path string) error
 }
 ```
 
@@ -25,5 +26,6 @@ Each implementation should have the commands:
 | `Random`   | It will take a random wallpaper from the possible wallpapers and set it as active                                                                      |
 | `Current`  | Return the currently set wallpaper for this Manager (its path i think?)                                                                                |
 | `History`  | Will return the history of the wallpapers set for this Manager                                                                                         |
+| `Set`      | Set a specific wallpaper as active, even if it's not in the configured directories                                                                     |
 
 Additionally, there is a global `list` command that lists all available wallpapers from the configured directories.
