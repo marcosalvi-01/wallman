@@ -1,16 +1,12 @@
-// Package hyprpaper provides wallpaper management for Hyprland using the hyprpaper daemon.
-package hyprpaper
+// Package macos provides wallpaper management for macOS using osascript.
+package macos
 
 import (
 	crand "crypto/rand"
-	"encoding/json"
 	"fmt"
-	"io/fs"
-	"log"
 	"math/big"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -22,7 +18,7 @@ import (
 
 var configDir = filepath.Join(os.Getenv("HOME"), ".local", "share", "wallman")
 
-type Hyprpaper struct {
+type MacOS struct {
 	configDir     string
 	wallpaperDirs []string
 	wallpapers    []string
@@ -30,22 +26,22 @@ type Hyprpaper struct {
 	dryRun        bool
 }
 
-func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryRun bool) (*Hyprpaper, error) {
+func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryRun bool) (*MacOS, error) {
 	walls := make([]string, 0)
 
 	for _, wallpaperDir := range wallpaperDirs {
 		if travelSubdirs {
-			if err := filepath.WalkDir(wallpaperDir, func(dirPath string, d fs.DirEntry, err error) error {
+			err := filepath.WalkDir(wallpaperDir, func(path string, d os.DirEntry, err error) error {
 				if err != nil {
-					log.Printf("warning: failed to access %s: %v", dirPath, err)
-					return nil
+					return fmt.Errorf("failed to access %s: %v", path, err)
 				}
 				if d.IsDir() || !common.IsImage(d.Name()) {
 					return nil
 				}
-				walls = append(walls, dirPath)
+				walls = append(walls, path)
 				return nil
-			}); err != nil {
+			})
+			if err != nil {
 				return nil, fmt.Errorf("failed to walk directory %s: %w", wallpaperDir, err)
 			}
 		} else {
@@ -58,7 +54,7 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 				if entry.IsDir() || !common.IsImage(entry.Name()) {
 					continue
 				}
-				walls = append(walls, path.Join(wallpaperDir, entry.Name()))
+				walls = append(walls, filepath.Join(wallpaperDir, entry.Name()))
 			}
 		}
 	}
@@ -79,7 +75,7 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 
 	common.ShuffleSlice(randWalls)
 
-	randomFile := path.Join(configDir, "random")
+	randomFile := filepath.Join(configDir, "random")
 
 	if _, err := os.Stat(randomFile); err != nil {
 		if os.IsNotExist(err) {
@@ -94,7 +90,7 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 		}
 	}
 
-	return &Hyprpaper{
+	return &MacOS{
 		configDir:     configDir,
 		wallpaperDirs: wallpaperDirs,
 		wallpapers:    walls,
@@ -103,15 +99,15 @@ func New(wallpaperDirs []string, travelSubdirs bool, queries *sqlc.Queries, dryR
 	}, nil
 }
 
-func (h *Hyprpaper) Next() error {
-	if len(h.wallpapers) == 0 {
+func (m *MacOS) Next() error {
+	if len(m.wallpapers) == 0 {
 		return fmt.Errorf("no wallpapers available")
 	}
 
 	current, err := db.GetCurrentWallpaperPath()
 	index := -1
 	if err == nil {
-		for i, w := range h.wallpapers {
+		for i, w := range m.wallpapers {
 			if w == current {
 				index = i
 				break
@@ -121,27 +117,27 @@ func (h *Hyprpaper) Next() error {
 
 	nextIndex := 0
 	if index != -1 {
-		nextIndex = (index + 1) % len(h.wallpapers)
+		nextIndex = (index + 1) % len(m.wallpapers)
 	}
 
-	path := h.wallpapers[nextIndex]
+	path := m.wallpapers[nextIndex]
 
 	err = db.SetWallpaper(path)
 	if err != nil {
 		return err
 	}
 
-	if !h.dryRun {
-		err := setWallpaperToAllMonitors(path, "cover")
+	if !m.dryRun {
+		err := setWallpaper(path)
 		if err != nil {
-			return fmt.Errorf("failed to set next wallpaper on all monitors: %w", err)
+			return fmt.Errorf("failed to set next wallpaper: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (h *Hyprpaper) Previous() error {
+func (m *MacOS) Previous() error {
 	path, err := db.GetPreviousWallpaper()
 	if err != nil {
 		return err
@@ -152,52 +148,49 @@ func (h *Hyprpaper) Previous() error {
 		return err
 	}
 
-	if !h.dryRun {
-		err := setWallpaperToAllMonitors(path, "cover")
+	if !m.dryRun {
+		err := setWallpaper(path)
 		if err != nil {
-			return fmt.Errorf("failed to set previous wallpaper on all monitors: %w", err)
+			return fmt.Errorf("failed to set previous wallpaper: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (h *Hyprpaper) Random(trueRandom bool) error {
-	if len(h.wallpapers) == 0 {
+func (m *MacOS) Random(trueRandom bool) error {
+	if len(m.wallpapers) == 0 {
 		return fmt.Errorf("no wallpapers available")
 	}
 
 	if trueRandom {
-		// Old behavior: pick completely random from all wallpapers
-		bigInt := big.NewInt(int64(len(h.wallpapers)))
+		bigInt := big.NewInt(int64(len(m.wallpapers)))
 		randInt, randErr := crand.Int(crand.Reader, bigInt)
 		if randErr != nil {
 			return randErr
 		}
 		randomIndex := int(randInt.Int64())
-		path := h.wallpapers[randomIndex]
+		path := m.wallpapers[randomIndex]
 
 		err := db.SetWallpaper(path)
 		if err != nil {
 			return err
 		}
 
-		if !h.dryRun {
-			err := setWallpaperToAllMonitors(path, "fill")
+		if !m.dryRun {
+			err := setWallpaper(path)
 			if err != nil {
-				return fmt.Errorf("failed to set random wallpaper on all monitors: %w", err)
+				return fmt.Errorf("failed to set random wallpaper: %w", err)
 			}
 		}
 
 		return nil
 	}
 
-	// Cycle behavior
 	shuffled, index, err := db.GetRandomCycle()
 	if err != nil {
-		// If no cycle, initialize it
-		shuffled = make([]string, len(h.wallpapers))
-		copy(shuffled, h.wallpapers)
+		shuffled = make([]string, len(m.wallpapers))
+		copy(shuffled, m.wallpapers)
 		common.ShuffleSlice(shuffled)
 		index = 0
 		err = db.UpsertRandomCycle(shuffled, index)
@@ -206,21 +199,18 @@ func (h *Hyprpaper) Random(trueRandom bool) error {
 		}
 	}
 
-	// Verify the current shuffled matches h.wallpapers (handle changes)
-	valid := len(shuffled) == len(h.wallpapers)
+	valid := len(shuffled) == len(m.wallpapers)
 	if valid {
 		for _, s := range shuffled {
-			found := slices.Contains(h.wallpapers, s)
-			if !found {
+			if !slices.Contains(m.wallpapers, s) {
 				valid = false
 				break
 			}
 		}
 	}
 	if !valid {
-		// Reset cycle
-		shuffled = make([]string, len(h.wallpapers))
-		copy(shuffled, h.wallpapers)
+		shuffled = make([]string, len(m.wallpapers))
+		copy(shuffled, m.wallpapers)
 		common.ShuffleSlice(shuffled)
 		index = 0
 		err = db.UpsertRandomCycle(shuffled, index)
@@ -235,17 +225,15 @@ func (h *Hyprpaper) Random(trueRandom bool) error {
 		return err
 	}
 
-	if !h.dryRun {
-		err := setWallpaperToAllMonitors(path, "cover")
+	if !m.dryRun {
+		err := setWallpaper(path)
 		if err != nil {
-			return fmt.Errorf("failed to set random wallpaper on all monitors: %w", err)
+			return fmt.Errorf("failed to set random wallpaper: %w", err)
 		}
 	}
 
-	// Advance index
 	index++
 	if index >= len(shuffled) {
-		// Cycle complete, reshuffle for next
 		common.ShuffleSlice(shuffled)
 		index = 0
 	}
@@ -257,11 +245,11 @@ func (h *Hyprpaper) Random(trueRandom bool) error {
 	return nil
 }
 
-func (h *Hyprpaper) Current() (string, error) {
+func (m *MacOS) Current() (string, error) {
 	return db.GetCurrentWallpaperPath()
 }
 
-func (h *Hyprpaper) History() ([]string, error) {
+func (m *MacOS) History() ([]string, error) {
 	history, err := db.GetWallpaperHistory(100)
 	if err != nil {
 		return nil, err
@@ -273,7 +261,7 @@ func (h *Hyprpaper) History() ([]string, error) {
 	return paths, nil
 }
 
-func (h *Hyprpaper) Set(path string) error {
+func (m *MacOS) Set(path string) error {
 	path = common.ExpandPath(path)
 
 	info, err := os.Stat(path)
@@ -286,7 +274,7 @@ func (h *Hyprpaper) Set(path string) error {
 	}
 
 	if !common.IsImage(filepath.Base(path)) {
-		return fmt.Errorf("unsupported image format (only JPEG and PNG are supported)")
+		return fmt.Errorf("unsupported image format (only JPEG, PNG, BMP, WEBP are supported)")
 	}
 
 	err = db.SetWallpaper(path)
@@ -294,56 +282,21 @@ func (h *Hyprpaper) Set(path string) error {
 		return fmt.Errorf("failed to set wallpaper in database: %w", err)
 	}
 
-	if !h.dryRun {
-		err := setWallpaperToAllMonitors(path, "fill")
+	if !m.dryRun {
+		err := setWallpaper(path)
 		if err != nil {
-			return fmt.Errorf("failed to set wallpaper on monitors: %w", err)
+			return fmt.Errorf("failed to set wallpaper: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func setWallpaperToAllMonitors(path, fit string) error {
-	monitors, err := listMonitors()
-	if err != nil {
-		return fmt.Errorf("failed to list monitors: %w", err)
-	}
-	for _, monitor := range monitors {
-		err := setWallpaper(path, monitor, fit)
-		if err != nil {
-			return fmt.Errorf("failed to set wallpaper on monitor %s: %w", monitor, err)
-		}
-	}
-	return nil
-}
-
-func setWallpaper(path, monitor, fit string) error {
-	args := fmt.Sprintf("%s,%s,%s", monitor, path, fit)
-	err := exec.Command("hyprctl", "hyprpaper", "wallpaper", args).Run()
+func setWallpaper(path string) error {
+	cmd := fmt.Sprintf(`tell application "System Events" to set picture of every desktop to POSIX file "%s"`, path)
+	err := exec.Command("osascript", "-e", cmd).Run()
 	if err != nil {
 		return fmt.Errorf("failed to set wallpaper: %w", err)
 	}
 	return nil
-}
-
-func listMonitors() ([]string, error) {
-	cmd := exec.Command("hyprctl", "monitors", "-j")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get monitors: %v", err)
-	}
-
-	var data []struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse monitors JSON: %v", err)
-	}
-
-	var names []string
-	for _, m := range data {
-		names = append(names, m.Name)
-	}
-	return names, nil
 }
