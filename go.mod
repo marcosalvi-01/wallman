@@ -1,12 +1,12 @@
-module wallman
+module github.com/marcosalvi-01/wallman
 
 go 1.25.5
 
 require (
-	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v2 v2.4.0
+	modernc.org/sqlite v1.42.2
 )
 
 require (
@@ -63,7 +63,6 @@ require (
 	modernc.org/libc v1.67.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.42.2 // indirect
 	mvdan.cc/gofumpt v0.9.2 // indirect
 )
 

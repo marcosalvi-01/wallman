@@ -1,6 +1,6 @@
 package main
 
-import "wallman/cmd"
+import "github.com/marcosalvi-01/wallman/cmd"
 
 func main() {
 	cmd.Execute()

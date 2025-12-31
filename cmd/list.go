@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"wallman/cmd/common"
+	"github.com/marcosalvi-01/wallman/cmd/common"
 
 	"github.com/spf13/cobra"
 )

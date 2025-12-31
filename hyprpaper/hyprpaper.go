@@ -15,8 +15,8 @@ import (
 	"regexp"
 	"strings"
 
-	"wallman/db"
-	"wallman/db/sqlc"
+	"github.com/marcosalvi-01/wallman/db"
+	"github.com/marcosalvi-01/wallman/db/sqlc"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"wallman/db/sqlc"
+	"github.com/marcosalvi-01/wallman/db/sqlc"
 
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"

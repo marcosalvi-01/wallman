@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"wallman/db/sqlc"
+	"github.com/marcosalvi-01/wallman/db/sqlc"
 )
 
 // SetWallpaper sets the current wallpaper and updates history.

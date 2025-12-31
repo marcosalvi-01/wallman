@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"wallman/db/sqlc"
-	"wallman/hyprpaper"
+	"github.com/marcosalvi-01/wallman/db/sqlc"
+	"github.com/marcosalvi-01/wallman/hyprpaper"
 )
 
 type Manager interface {

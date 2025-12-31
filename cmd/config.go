@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/marcosalvi-01/wallman/db"
+	"github.com/marcosalvi-01/wallman/db/sqlc"
 	"gopkg.in/yaml.v2"
-	"wallman/db"
-	"wallman/db/sqlc"
 )
 
 var (

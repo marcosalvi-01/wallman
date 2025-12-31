@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"wallman/cmd/common"
+	"github.com/marcosalvi-01/wallman/cmd/common"
 )
 
 func createFiles(dir string, files []string) error {
