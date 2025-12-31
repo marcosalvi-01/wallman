@@ -10,7 +10,7 @@ import (
 type Manager interface {
 	Next() error
 	Previous() error
-	Random() error
+	Random(trueRandom bool) error
 	Current() (string, error)
 	History() ([]string, error)
 }

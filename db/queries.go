@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -106,4 +107,48 @@ func GetPreviousWallpaper() (string, error) {
 		return "", fmt.Errorf("error getting previous wallpaper: %w", err)
 	}
 	return prev.Path, nil
+}
+
+// GetRandomCycle returns the current random cycle state.
+func GetRandomCycle() (shuffled []string, index int, err error) {
+	q, err := Get()
+	if err != nil {
+		return nil, 0, fmt.Errorf("error getting db connection: %w", err)
+	}
+
+	cycle, err := q.GetRandomCycle(context.Background())
+	if err == sql.ErrNoRows {
+		return nil, 0, fmt.Errorf("no random cycle set")
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("error getting random cycle: %w", err)
+	}
+
+	err = json.Unmarshal([]byte(cycle.ShuffledWallpapers), &shuffled)
+	if err != nil {
+		return nil, 0, fmt.Errorf("error unmarshaling shuffled wallpapers: %w", err)
+	}
+	return shuffled, int(cycle.CurrentIndex), nil
+}
+
+// UpsertRandomCycle updates the random cycle state.
+func UpsertRandomCycle(shuffled []string, index int) error {
+	q, err := Get()
+	if err != nil {
+		return fmt.Errorf("error getting db connection: %w", err)
+	}
+
+	data, err := json.Marshal(shuffled)
+	if err != nil {
+		return fmt.Errorf("error marshaling shuffled wallpapers: %w", err)
+	}
+
+	err = q.UpsertRandomCycle(context.Background(), sqlc.UpsertRandomCycleParams{
+		ShuffledWallpapers: string(data),
+		CurrentIndex:       int64(index),
+	})
+	if err != nil {
+		return fmt.Errorf("error upserting random cycle: %w", err)
+	}
+	return nil
 }

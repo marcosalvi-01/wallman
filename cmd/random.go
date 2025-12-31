@@ -7,7 +7,9 @@ import (
 var randomCmd = &cobra.Command{
 	Use:   "random",
 	Short: "Set random wallpaper",
-	Run: func(cmd *cobra.Command, args []string) {
+	Long:  `Sets a random wallpaper. By default, cycles through all wallpapers without repeating until all have been used, then reshuffles. Use --true-random for completely random selection from all wallpapers.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		trueRandom, _ := cmd.Flags().GetBool("true-random")
 		config := GetConfig()
 		managerType := manager
 		if managerType == "" {
@@ -15,16 +17,14 @@ var randomCmd = &cobra.Command{
 		}
 		man, err := GetManager(config.WallpaperDirs, config.TravelSubDirs, managerType, appQueries, dryRun)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
-		err = man.Random()
-		if err != nil {
-			panic(err)
-		}
+		return man.Random(trueRandom)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(randomCmd)
+	randomCmd.Flags().Bool("true-random", false, "Pick completely random wallpaper from all available (disables cycling)")
 }

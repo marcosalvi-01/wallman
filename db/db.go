@@ -43,7 +43,8 @@ func init() {
 	goose.SetBaseFS(embedMigrations)
 	err := goose.SetDialect("sqlite")
 	if err != nil {
-		panic("if you see this error please open an issue on github: " + err.Error())
+		fmt.Fprintf(os.Stderr, "fatal error: %s\n", err.Error())
+		os.Exit(1)
 	}
 	goose.SetLogger(&gooseLogger{})
 }

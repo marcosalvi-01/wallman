@@ -166,20 +166,85 @@ func (h *Hyprpaper) Previous() error {
 	return nil
 }
 
-func (h *Hyprpaper) Random() error {
+func (h *Hyprpaper) Random(trueRandom bool) error {
 	if len(h.wallpapers) == 0 {
 		return fmt.Errorf("no wallpapers available")
 	}
 
-	bigInt := big.NewInt(int64(len(h.wallpapers)))
-	randInt, randErr := crand.Int(crand.Reader, bigInt)
-	if randErr != nil {
-		return randErr
-	}
-	randomIndex := int(randInt.Int64())
-	path := h.wallpapers[randomIndex]
+	if trueRandom {
+		// Old behavior: pick completely random from all wallpapers
+		bigInt := big.NewInt(int64(len(h.wallpapers)))
+		randInt, randErr := crand.Int(crand.Reader, bigInt)
+		if randErr != nil {
+			return randErr
+		}
+		randomIndex := int(randInt.Int64())
+		path := h.wallpapers[randomIndex]
 
-	err := db.SetWallpaper(path)
+		err := db.SetWallpaper(path)
+		if err != nil {
+			return err
+		}
+
+		if !h.dryRun {
+			err := setWallpaperToAllMonitors(path, "cover")
+			if err != nil {
+				return fmt.Errorf("failed to set random wallpaper on all monitors: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	// Cycle behavior
+	shuffled, index, err := db.GetRandomCycle()
+	if err != nil {
+		// If no cycle, initialize it
+		shuffled = make([]string, len(h.wallpapers))
+		copy(shuffled, h.wallpapers)
+		rand.Shuffle(len(shuffled), func(i, j int) {
+			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+		})
+		index = 0
+		err = db.UpsertRandomCycle(shuffled, index)
+		if err != nil {
+			return fmt.Errorf("failed to initialize random cycle: %w", err)
+		}
+	}
+
+	// Verify the current shuffled matches h.wallpapers (handle changes)
+	valid := len(shuffled) == len(h.wallpapers)
+	if valid {
+		for _, s := range shuffled {
+			found := false
+			for _, w := range h.wallpapers {
+				if s == w {
+					found = true
+					break
+				}
+			}
+			if !found {
+				valid = false
+				break
+			}
+		}
+	}
+	if !valid {
+		// Reset cycle
+		shuffled = make([]string, len(h.wallpapers))
+		copy(shuffled, h.wallpapers)
+		rand.Shuffle(len(shuffled), func(i, j int) {
+			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+		})
+		index = 0
+		err = db.UpsertRandomCycle(shuffled, index)
+		if err != nil {
+			return fmt.Errorf("failed to reset random cycle: %w", err)
+		}
+	}
+
+	path := shuffled[index]
+	err = db.SetWallpaper(path)
 	if err != nil {
 		return err
 	}
@@ -189,6 +254,20 @@ func (h *Hyprpaper) Random() error {
 		if err != nil {
 			return fmt.Errorf("failed to set random wallpaper on all monitors: %w", err)
 		}
+	}
+
+	// Advance index
+	index++
+	if index >= len(shuffled) {
+		// Cycle complete, reshuffle for next
+		rand.Shuffle(len(shuffled), func(i, j int) {
+			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+		})
+		index = 0
+	}
+	err = db.UpsertRandomCycle(shuffled, index)
+	if err != nil {
+		return fmt.Errorf("failed to update random cycle: %w", err)
 	}
 
 	return nil

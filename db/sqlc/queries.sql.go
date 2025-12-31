@@ -60,6 +60,22 @@ func (q *Queries) GetPreviousWallpaper(ctx context.Context) (GetPreviousWallpape
 	return i, err
 }
 
+const getRandomCycle = `-- name: GetRandomCycle :one
+SELECT shuffled_wallpapers, current_index FROM random_cycle WHERE id = 1
+`
+
+type GetRandomCycleRow struct {
+	ShuffledWallpapers string
+	CurrentIndex       int64
+}
+
+func (q *Queries) GetRandomCycle(ctx context.Context) (GetRandomCycleRow, error) {
+	row := q.db.QueryRowContext(ctx, getRandomCycle)
+	var i GetRandomCycleRow
+	err := row.Scan(&i.ShuffledWallpapers, &i.CurrentIndex)
+	return i, err
+}
+
 const getWallpaperHistory = `-- name: GetWallpaperHistory :many
 SELECT
     id,
@@ -187,4 +203,18 @@ func (q *Queries) UpdateCurrentWallpaper(ctx context.Context, arg UpdateCurrentW
 	var i UpdateCurrentWallpaperRow
 	err := row.Scan(&i.Path, &i.SetAt)
 	return i, err
+}
+
+const upsertRandomCycle = `-- name: UpsertRandomCycle :exec
+INSERT OR REPLACE INTO random_cycle (id, shuffled_wallpapers, current_index) VALUES (1, ?, ?)
+`
+
+type UpsertRandomCycleParams struct {
+	ShuffledWallpapers string
+	CurrentIndex       int64
+}
+
+func (q *Queries) UpsertRandomCycle(ctx context.Context, arg UpsertRandomCycleParams) error {
+	_, err := q.db.ExecContext(ctx, upsertRandomCycle, arg.ShuffledWallpapers, arg.CurrentIndex)
+	return err
 }

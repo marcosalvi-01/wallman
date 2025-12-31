@@ -14,6 +14,12 @@ type CurrentWallpaper struct {
 	SetAt time.Time
 }
 
+type RandomCycle struct {
+	ID                 int64
+	ShuffledWallpapers string
+	CurrentIndex       int64
+}
+
 type WallpaperHistory struct {
 	ID      int64
 	Path    string

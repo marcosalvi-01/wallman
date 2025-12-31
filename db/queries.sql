@@ -66,3 +66,9 @@ SET
 WHERE
     path = ?
     AND unset_at IS NULL;
+
+-- name: GetRandomCycle :one
+SELECT shuffled_wallpapers, current_index FROM random_cycle WHERE id = 1;
+
+-- name: UpsertRandomCycle :exec
+INSERT OR REPLACE INTO random_cycle (id, shuffled_wallpapers, current_index) VALUES (1, ?, ?);

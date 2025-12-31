@@ -7,7 +7,7 @@ import (
 var nextCmd = &cobra.Command{
 	Use:   "next",
 	Short: "Set next wallpaper",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		config := GetConfig()
 		managerType := manager
 		if managerType == "" {
@@ -15,13 +15,10 @@ var nextCmd = &cobra.Command{
 		}
 		man, err := GetManager(config.WallpaperDirs, config.TravelSubDirs, managerType, appQueries, dryRun)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
-		err = man.Next()
-		if err != nil {
-			panic(err)
-		}
+		return man.Next()
 	},
 }
 

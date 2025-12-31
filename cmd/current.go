@@ -9,7 +9,7 @@ import (
 var currentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show current wallpaper",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		config := GetConfig()
 		managerType := manager
 		if managerType == "" {
@@ -17,15 +17,16 @@ var currentCmd = &cobra.Command{
 		}
 		man, err := GetManager(config.WallpaperDirs, config.TravelSubDirs, managerType, appQueries, dryRun)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		path, err := man.Current()
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		fmt.Println(path)
+		return nil
 	},
 }
 
