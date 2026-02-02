@@ -40,9 +40,16 @@ SELECT
 FROM
     wallpaper_history
 WHERE
-    unset_at IS NOT NULL
+    set_at < (
+        SELECT
+            set_at
+        FROM
+            current_wallpaper
+        WHERE
+            id = 1
+    )
 ORDER BY
-    unset_at DESC
+    set_at DESC
 LIMIT
     1
 `

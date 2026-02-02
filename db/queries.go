@@ -92,21 +92,39 @@ func GetWallpaperHistory(limit int) ([]sqlc.WallpaperHistory, error) {
 	return history, nil
 }
 
-// GetPreviousWallpaper returns the previous wallpaper path.
-func GetPreviousWallpaper() (string, error) {
+// GetPreviousWallpaper returns the previous wallpaper path and set time.
+func GetPreviousWallpaper() (string, time.Time, error) {
 	q, err := Get()
 	if err != nil {
-		return "", fmt.Errorf("error getting db connection: %w", err)
+		return "", time.Time{}, fmt.Errorf("error getting db connection: %w", err)
 	}
 
 	prev, err := q.GetPreviousWallpaper(context.Background())
 	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("no previous wallpaper")
+		return "", time.Time{}, fmt.Errorf("no previous wallpaper")
 	}
 	if err != nil {
-		return "", fmt.Errorf("error getting previous wallpaper: %w", err)
+		return "", time.Time{}, fmt.Errorf("error getting previous wallpaper: %w", err)
 	}
-	return prev.Path, nil
+	return prev.Path, prev.SetAt, nil
+}
+
+// SetCurrentWallpaper updates the current wallpaper without modifying history.
+func SetCurrentWallpaper(path string, setAt time.Time) error {
+	q, err := Get()
+	if err != nil {
+		return fmt.Errorf("error getting db connection: %w", err)
+	}
+
+	_, err = q.UpdateCurrentWallpaper(context.Background(), sqlc.UpdateCurrentWallpaperParams{
+		Path:  path,
+		SetAt: setAt,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update current wallpaper: %w", err)
+	}
+
+	return nil
 }
 
 // GetRandomCycle returns the current random cycle state.

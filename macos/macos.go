@@ -138,12 +138,12 @@ func (m *MacOS) Next() error {
 }
 
 func (m *MacOS) Previous() error {
-	path, err := db.GetPreviousWallpaper()
+	path, setAt, err := db.GetPreviousWallpaper()
 	if err != nil {
 		return err
 	}
 
-	err = db.SetWallpaper(path)
+	err = db.SetCurrentWallpaper(path, setAt)
 	if err != nil {
 		return err
 	}
